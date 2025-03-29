@@ -1,5 +1,6 @@
 ﻿using InventoryService;
 using OrderService;
+using Polly;
 using TwoPC.Coordinator.Requests;
 using PrepareRequest = InventoryService.PrepareRequest;
 
@@ -31,7 +32,7 @@ public class OrderService : IOrderService
         var orderTransactionId = $"order_{uniqueId}";
         var paymentTransactionId = $"payment_{uniqueId}";
         var shippingTransactionId = $"shipping_{uniqueId}";
-        
+
         var userId = Random.Shared.Next(int.MaxValue);
 
         // prepare inventory service
@@ -50,7 +51,7 @@ public class OrderService : IOrderService
             UserId = userId,
             Price = (double)request.Price,
         });
-        
+
         // prepare payment service
         var paymentServiceIsReadyCommit = await _paymentService.PrepareAsync(new PaymentService.PrepareRequest
         {
@@ -73,32 +74,64 @@ public class OrderService : IOrderService
             paymentServiceIsReadyCommit.IsCommitReady &&
             shippingServiceIsReadyCommit.IsCommitReady)
         {
-            //commit inventory service
-            await _inventoryService.CommitAsync(new TransactionRequest
-            {
-                TransactionId = inventoryTransactionId
-            });
+            await Policy
+                .Handle<Exception>()
+                .WaitAndRetry(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)))
+                .Execute(async () =>
+                {
+                    await CommitServicesAsync(
+                        inventoryTransactionId,
+                        orderTransactionId,
+                        paymentTransactionId,
+                        shippingTransactionId);
+                });
 
-            //commit order service
-            await _orderService.CommitAsync(new CommitRequest
-            {
-                TransactionId = orderTransactionId
-            });
-            
-            //commit payment service
-            await _paymentService.CommitAsync(new PaymentService.CommitRequest
-            {
-                TransactionId = paymentTransactionId
-            });
-
-            await _shippingService.CommitAsync(new ShippingService.CommitRequest()
-            {
-                TransactionId = shippingTransactionId
-            });
-            
             return;
         }
 
+
+        await RollbackServicesAsync(
+            inventoryTransactionId,
+            orderTransactionId,
+            paymentTransactionId,
+            shippingTransactionId);
+    }
+
+    private async Task CommitServicesAsync(
+        string inventoryTransactionId,
+        string orderTransactionId,
+        string paymentTransactionId,
+        string shippingTransactionId)
+    {
+        await _inventoryService.CommitAsync(new TransactionRequest
+        {
+            TransactionId = inventoryTransactionId
+        });
+
+        //commit order service
+        await _orderService.CommitAsync(new CommitRequest
+        {
+            TransactionId = orderTransactionId
+        });
+
+        //commit payment service
+        await _paymentService.CommitAsync(new PaymentService.CommitRequest
+        {
+            TransactionId = paymentTransactionId
+        });
+
+        await _shippingService.CommitAsync(new ShippingService.CommitRequest()
+        {
+            TransactionId = shippingTransactionId
+        });
+    }
+
+    private async Task RollbackServicesAsync(
+        string inventoryTransactionId,
+        string orderTransactionId,
+        string paymentTransactionId,
+        string shippingTransactionId)
+    {
         await _inventoryService.RollbackAsync(new TransactionRequest
         {
             TransactionId = inventoryTransactionId
