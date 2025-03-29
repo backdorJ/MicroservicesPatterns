@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>2PC.OrderService</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Grpc.AspNetCore" Version="2.57.0" />
+        <PackageReference Include="Npgsql" Version="8.0.7" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Protos\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\TwoPC.Shared\TwoPC.Shared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Protobuf Include="..\TwoPC.Shared\Protos\*.proto" GrpcServices="Both" />
+    </ItemGroup>
+
+</Project>

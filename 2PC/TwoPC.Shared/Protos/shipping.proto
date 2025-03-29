@@ -1,0 +1,32 @@
+﻿syntax = "proto3";
+
+package ShippingService;
+import "google/protobuf/empty.proto";
+
+service ShippingService {
+  rpc Commit(CommitRequest) returns(CommitResponse) {}
+  rpc Rollback(RollbackRequest) returns(google.protobuf.Empty) {}
+  rpc Prepare(PrepareRequest) returns(PrepareResponse) {}
+}
+
+message PrepareRequest {
+  int32 product_id = 1;
+  string transaction_id = 2;
+  int32 user_id = 3;
+}
+
+message PrepareResponse {
+  bool is_commit_ready = 1;
+}
+
+message CommitRequest {
+  string transaction_id = 1;
+}
+
+message CommitResponse {
+  bool is_success = 1;
+}
+
+message RollbackRequest {
+  string transaction_id = 1;
+}

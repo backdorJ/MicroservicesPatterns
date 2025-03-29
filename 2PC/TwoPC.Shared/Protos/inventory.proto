@@ -1,0 +1,29 @@
+﻿syntax = "proto3";
+
+package InventoryService;
+import "google/protobuf/empty.proto";
+
+service InventoryService {
+  rpc Rollback(TransactionRequest) returns (google.protobuf.Empty);
+  rpc Commit(TransactionRequest) returns (TransactionResponse);
+  rpc Prepare(PrepareRequest) returns (PrepareResponse);
+}
+
+message PrepareRequest {
+  int32 product_id = 1;
+  int32 user_id = 2;
+  string transaction_id = 3;
+}
+
+message PrepareResponse {
+  bool is_ready_commit = 1;
+}
+
+message TransactionRequest {
+  string transaction_id = 1;
+}
+
+message TransactionResponse {
+  bool is_success = 1;
+}
+
